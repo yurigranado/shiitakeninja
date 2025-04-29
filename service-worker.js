@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sushi-ninja-v1';
+const CACHE_NAME = 'sushi-ninja-v2';
 const APP_SHELL = [
   './index.html',
   './recover.html',
