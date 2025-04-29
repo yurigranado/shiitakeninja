@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width,
+                 initial-scale=1.0,
+                 minimum-scale=1.0,
+                 maximum-scale=1.0,
+                 user-scalable=no">
+  <title>Sushi Ninja – Shiitake</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background: #000;
+      height: 100vh; overflow: hidden;
+      font-family: Arial, sans-serif;
+      touch-action: manipulation;
+    }
+    /* TOQUE PARA INICIAR */
+    #startOverlay {
+      position: fixed; top:0; left:0;
+      width:100vw; height:100vh;
+      background: rgba(0,0,0,0.9);
+      display: flex; justify-content:center; align-items:center;
+      z-index:10001;
+    }
+    #startOverlay button {
+      padding: 1em 2em;
+      font-size: 3vh;
+      background: #fff;
+      border: none; border-radius: .5em;
+      cursor: pointer;
+    }
+    /* LOADING 5s */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      justify-content: center; align-items: center;
+      flex-direction: column;
+      z-index: 10000;
+    }
+    
+    #loadingText {
+      color: #fff; font-size: 4vh; margin-bottom: 2vh;
+    }
+    #loadingBarContainer {
+      width: 80vw; max-width: 400px;
+      height: 4vh; background: #333;
+      border-radius: 2vh; overflow: hidden;
+    }
+    #loadingBar {
+      width: 0%; height: 100%;
+      background: #fff;
+      transition: width .1s linear;
+    }
+    /* JOGO */
+    #gameContainer {
+      width:100vw; height:100vh;
+      overflow:hidden; position:relative;
+    }
+    canvas {
+      display:block; width:100vw; max-height:100vh;
+      background: url("https://i.imgur.com/aj3Li9h.png") center/cover no-repeat;
+    }
+    @keyframes shake {
+      0%{transform:translate(0,0)}25%{transform:translate(5px,0)}
+      50%{transform:translate(-5px,0)}75%{transform:translate(3px,0)}
+      100%{transform:translate(0,0)}
+    }
+    .shake { animation:shake .1s infinite }
+    /* iluminação dourada lateral */
+    #goldenGlow {
+      position: absolute; top:0; left:0;
+      width:100vw; height:100vh;
+      pointer-events:none;
+      background: linear-gradient(to right, rgba(255,215,0,0.3), transparent 10%, transparent 90%, rgba(255,215,0,0.3));
+      mix-blend-mode: screen;
+      display: none;
+      z-index: 5000;
+    }
+    #gameOver {
+      position:fixed; top:0; left:0;
+      width:100vw; height:100vh;
+      background: rgba(0,0,0,.95);
+      display:none;
+      justify-content:center; align-items:center;
+      z-index:9999;
+    }
+    .modal-box {
+      width:100vw; max-height:100vh; padding:4vh 4vw 3vh;
+      box-sizing:border-box;
+      display:flex; flex-direction:column;
+      justify-content:flex-start; align-items:center;
+      overflow-y:auto;
+    }
+    .modal-box h2 { font-size:5vh; margin:0 0 2vh; color:#fff }
+    .modal-box p  { font-size:3.5vh; margin:0 0 3vh; color:#fff }
+    .modal-box input, .modal-box button {
+      width:100%; max-width:92vw; height:9vh; max-height:70px;
+      margin:1vh 0; font-size:2.5vh!important;
+      border:none; background:#fff; color:#000;
+      font-weight:bold; cursor:pointer;
+      box-sizing:border-box;
+    }
+    #submitContainer { display:none }
+    #ranking {
+      width:90vw; max-height:25vh; overflow-y:auto;
+      font-size:2.3vh; color:#fff;
+      margin-top:2vh; padding:0; text-align:left;
+      box-sizing:border-box;
+    }
+    #ranking pre { white-space:pre-wrap; margin:0; padding:0 }
+    @keyframes golden-blink {
+      0%,100%{color:gold}50%{color:#fff}
+    }
+    .firstPlace {
+      animation:golden-blink 1.2s infinite;
+      font-weight:bold;
+    }
+    /* overlay escuro cobrindo toda a tela */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 30000;
+}
+
+/* botão estilizado */
+#modalOkBtn {
+  margin-top: 1em;
+  background: gold;
+  border: none;
+  padding: 0.8em 2em;
+  font-size: 1em;
+  border-radius: 0.5em;
+  cursor: pointer;
+  font-weight: bold;
+}
+#modalOkBtn:hover {
+  background: #e5c100;
+}
+
+/* remove o destaque azul ao tocar (Android/iOS) */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+  </style>
+</head>
+<body>
+  <!-- Modal de bloqueio para desktop -->
+  <div id="deviceModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <h2>📱 Acesso Restrito</h2>
+      <p>Este jogo só está disponível em celulares.<br>Por favor, abra no seu smartphone!</p>
+      <button id="modalOkBtn">OK</button>
+    </div>
+  </div>
+
+  <!-- INÍCIO DO OVERLAY DE RESGATE -->
+  <div id="recoverOverlay" …>
+
+  <!-- INÍCIO DO OVERLAY DE RESGATE -->
+  <div id="recoverOverlay" style="
+      position: fixed; top:0; left:0;
+      width:100vw; height:100vh;
+      background: rgba(0,0,0,0.9);
+      display: none;
+      justify-content: center; align-items: center;
+      z-index: 20000;
+    ">
+    <?!= include('recover'); ?>
+  </div>
+  <!-- Áudios -->
+  <audio id="bgMusic"
+         src="https://raw.githubusercontent.com/yurigranado/shiitakeninja/09e69a702eb09e3bbcc12a343f74e5bcd06b0f5e/bb.mp3"
+         loop preload="auto"></audio>
+  <audio id="cutSound"
+         src="https://raw.githubusercontent.com/yurigranado/shiitakeninja/caf1d86a7b899697b8566d2cc803ca47bb401591/Cut.mp3"
+         preload="auto"></audio>
+  <audio id="explosionSound"
+         src="https://raw.githubusercontent.com/yurigranado/shiitakeninja/caf1d86a7b899697b8566d2cc803ca47bb401591/Bomb.mp3"
+         preload="auto"></audio>
+  <audio id="powerSound"
+         src="https://raw.githubusercontent.com/yurigranado/shiitakeninja/7f6631a761ac0f22df9d5268a4eaf3c7a9f3e2b3/trovao.mp3"
+         preload="auto"></audio>
+
+  <!-- TOQUE PARA INICIAR -->
+  <div id="startOverlay">
+    <button id="startBtn">Toque para Começar</button>
+  </div>
+  <!-- LOADING -->
+  <div id="loadingOverlay">
+    <div id="loadingText">Carregando...</div>
+    <div id="loadingBarContainer"><div id="loadingBar"></div></div>
+  </div>
+  <!-- JOGO -->
+  <div id="gameContainer">
+    <div id="goldenGlow"></div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="gameOver">
+      <div class="modal-box">
+        <h2>💥 Fim de jogo!</h2>
+        <p id="pontuacaoFinal"></p>
+        <div id="submitContainer">
+          <input type="text" id="nome" placeholder="Seu nome" autocomplete="off">
+          <button id="enviarBtn" onclick="enviarPontuacao()">Enviar Pontuação</button>
+        </div>
+        <button onclick="returnToMenu()">🔙 Voltar ao Menu</button>
+        <div id="ranking">
+          <strong>🏆 Ranking Global:</strong><br>
+          <pre id="rankingContent">Carregando...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- 2: MENU PRINCIPAL -->
+  <div id="menuOverlay" style="display:none;
+                                position:fixed;top:0;left:0;
+                                width:100vw;height:100vh;
+                                flex-direction:column;
+                                justify-content:center;
+                                align-items:center;
+                                z-index:10001;">
+    <!-- botão JOGAR -->
+    <img id="playBtn"
+         class="menu-btn"
+         src="https://i.imgur.com/jKJ1OTa.png"
+         data-normal="https://i.imgur.com/jKJ1OTa.png"
+         data-selected="https://i.imgur.com/jKJ1OTa.png"
+         style="margin:1vh;cursor:pointer;">
+    <!-- botão OPÇÕES -->
+    <img id="optionsBtn"
+         class="menu-btn"
+         src="https://i.imgur.com/T1wN3Ed.png"
+         data-normal="https://i.imgur.com/T1wN3Ed.png"
+         data-selected="https://i.imgur.com/T1wN3Ed.png"
+         style="margin:1vh;cursor:pointer;">
+    <!-- botão RECUPERAR PONTOS -->
+    <img id="recoverBtn"
+         class="menu-btn"
+         src="https://i.imgur.com/yZ59SWc.png"
+         data-normal="https://i.imgur.com/yZ59SWc.png"
+         data-selected="https://i.imgur.com/yZ59SWc.png"
+         style="margin:1vh;cursor:pointer;">
+  </div>
+
+
+  <script>
+    
+  <!-- ===== Detecção de desktop vs mobile ===== -->
+      function verificarDispositivo() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      if (!/android|ipad|iphone|ipod/i.test(ua)) {
+        // mostra o modal
+        document.getElementById('deviceModal').style.display = 'flex';
+      }
+    }
+    // executa assim que a página carregar
+    window.addEventListener('load', verificarDispositivo);
+
+    // ao clicar em OK, redireciona
+    document.getElementById('modalOkBtn').addEventListener('click', () => {
+      window.location.href = "https://shiitakejapalounge.com";
+    });
+
+    // — TOQUE / LOADING —
+    const startBtn       = document.getElementById('startBtn'),
+          startOverlay   = document.getElementById('startOverlay'),
+          loadingOverlay = document.getElementById('loadingOverlay'),
+          loadingBar     = document.getElementById('loadingBar'),
+          bgMusic        = document.getElementById('bgMusic'),
+          powerSound     = document.getElementById('powerSound'),
+          goldenGlow     = document.getElementById('goldenGlow');
+    startBtn.addEventListener('click', () => {
+      bgMusic.play().catch(()=>{});
+      startOverlay.style.display = 'none';
+      loadingOverlay.style.display = 'flex';
+      let pct = 0;
+      const loader = setInterval(() => {
+        pct++;
+        loadingBar.style.width = pct + '%';
+        if (pct >= 100) {
+  clearInterval(loader);
+  loadingOverlay.style.display = 'none';
+  menuOverlay.style.display = 'flex';  // <-- mostra o menu
+}
+
+      }, 5000 / 100);
+    });
+
+    // — VARS / IMAGENS / ÁUDIOS —
+    const SUSHI_SIZE = 60, LARG = 360, ALT = 640;
+    const canvas = document.getElementById('gameCanvas'),
+          ctx    = canvas.getContext('2d');
+    canvas.width  = LARG;
+    canvas.height = ALT;
+    const sushiImg      = new Image(); sushiImg.src      = 'https://i.imgur.com/lqAFQBt.png';
+    const bombaImg      = new Image(); bombaImg.src      = 'https://i.imgur.com/ScSQomo.png';
+    const estrelaImg    = new Image(); estrelaImg.src    = 'https://i.imgur.com/B0RcdOz.gif';
+    const comboImg      = new Image(); comboImg.src      = 'https://www.pngkit.com/png/full/420-4208784_apesar-de-esse-ser-o-texto-logo-combo.png';
+    const specialImg    = new Image(); specialImg.src    = 'https://i.imgur.com/DiG38fL.png';
+    const cutSound      = document.getElementById('cutSound'),
+          explosionSound = document.getElementById('explosionSound');
+
+    const menuOverlay = document.getElementById('menuOverlay'),
+      playBtn     = document.getElementById('playBtn'),
+      optionsBtn  = document.getElementById('optionsBtn'),
+      recoverBtn  = document.getElementById('recoverBtn');
+
+    // — LÂMINA VISUAL FIXA —
+    let bladeAngle = 0, bladeX = 0, bladeY = 0;
+    const BLADE_DRAW_WIDTH  = 160;
+    const BLADE_DRAW_HEIGHT = 40;
+    const bladeImgs = [ new Image(), new Image(), new Image() ];
+    bladeImgs.forEach(img=>img.src='https://i.imgur.com/IIugy5O.png');
+    let bladeIndex = 0;
+
+    // — VELOCIDADE & NÍVEL —
+    let level = 0; const baseSpeed = 5;
+
+    // — ESTADO —
+    let sushis = [], bombas = [], specials = [],
+        pontos = 0, vidas = 3, jogoAtivo = true;
+    let trilha = [], cortando = false, explosions = [], sushisCortados = [];
+
+    // — COMBO / POWER MODE —
+    let comboTime = 0, noCutTimer = 0, lastFrame = 0;
+    let powerMode = false, powerEnd = 0;
+
+    // — DEVICE ID —
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = Date.now().toString() + Math.random().toString().substr(2);
+      localStorage.setItem('deviceId', deviceId);
+    }
+
+    function resizeCanvas(){
+    canvas.style.height = window.innerHeight + 'px';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // — SPAWN FIXED —
+    const SPAWN_SIZE = SUSHI_SIZE;
+    function getAllActive() {
+      return [...sushis, ...bombas, ...specials];
+    }
+    function obterXValido() {
+      for (let i=0; i<10; i++) {
+        const x = Math.random()*(LARG-SPAWN_SIZE);
+        if (!getAllActive().some(o => Math.abs(o.x - x) < SPAWN_SIZE)) {
+          return x;
+        }
+      }
+      return null;
+    }
+    function criarSushi() {
+      const x = obterXValido();
+      if (x!==null) sushis.push({ x, y: -SPAWN_SIZE, cortado:false, missed:false });
+    }
+    function criarBomba() {
+      const x = obterXValido();
+      if (x!==null) bombas.push({ x, y: -SPAWN_SIZE });
+    }
+    function criarEspecial() {
+      const x = obterXValido();
+      if (x!==null) {
+        const pts = 5 + Math.floor(Math.random()*11);
+        specials.push({ x, y: -SPAWN_SIZE, points: pts, cortado:false });
+      }
+    }
+
+    function startShake(dur) {
+      document.getElementById('gameContainer').classList.add('shake');
+      setTimeout(()=>document.getElementById('gameContainer').classList.remove('shake'), dur);
+    }
+
+    // — LOOP PRINCIPAL —
+    function desenhar() {
+      const now   = Date.now();
+      const delta = lastFrame ? now - lastFrame : 16.67;
+      lastFrame = now;
+      const speed    = baseSpeed + level;
+      const movement = speed * (delta/16.67);
+
+      // combo / power
+      if (!powerMode) {
+        comboTime = Math.max(comboTime - delta,0);
+        noCutTimer += delta;
+        if (noCutTimer>=1500) { comboTime = Math.max(comboTime-500,0); noCutTimer=0; }
+        if (comboTime>=10000) {
+          powerMode=true; powerEnd=now+5000;
+          powerSound.play().catch(()=>{});
+          goldenGlow.style.display='block';
+        }
+      } else if (now>powerEnd){
+        powerMode=false; comboTime=0; noCutTimer=0;
+        goldenGlow.style.display='none';
+        if (level<40) level++;
+      }
+
+      if (!jogoAtivo) return;
+      ctx.clearRect(0,0,LARG,ALT);
+
+      // explosões
+      explosions.forEach(ex=>{
+        ctx.save();
+        ctx.globalAlpha=ex.alpha;
+        ctx.beginPath();
+        ctx.arc(ex.x,ex.y,ex.radius,0,2*Math.PI);
+        ctx.strokeStyle='yellow'; ctx.lineWidth=3;
+        ctx.stroke();
+        ctx.restore();
+        ex.radius+=2; ex.alpha-=0.05;
+      });
+      explosions = explosions.filter(ex=>ex.alpha>0);
+
+      // desenha lâmina se cortando
+      if (cortando) {
+        const img = bladeImgs[bladeIndex];
+        ctx.save();
+        ctx.translate(bladeX, bladeY);
+        ctx.rotate(bladeAngle - Math.PI/2);
+        ctx.drawImage(
+          img,
+          -BLADE_DRAW_WIDTH/2,
+          -BLADE_DRAW_HEIGHT/2,
+          BLADE_DRAW_WIDTH,
+          BLADE_DRAW_HEIGHT
+        );
+        ctx.restore();
+      }
+
+      // desenha e move entidades
+      sushis.forEach(s=>{ if(!s.cortado) ctx.drawImage(sushiImg,s.x,s.y,SUSHI_SIZE,SUSHI_SIZE); s.y+=movement; });
+      bombas.forEach(b=>{ ctx.drawImage(bombaImg,b.x,b.y,60,60); b.y+=movement; });
+      specials.forEach(e=>{ if(!e.cortado) ctx.drawImage(specialImg,e.x,e.y,SUSHI_SIZE,SUSHI_SIZE); e.y+=movement; });
+
+      // filtrar fora
+      sushis   = sushis.filter(s=>s.y<ALT+SUSHI_SIZE);
+      bombas   = bombas.filter(b=>b.y<ALT+SUSHI_SIZE);
+      specials = specials.filter(e=>e.y<ALT+SUSHI_SIZE && !e.cortado);
+
+      // corte visual
+      if (trilha.length===2 && cortando) {
+        ctx.strokeStyle='white'; ctx.lineWidth=4;
+        ctx.beginPath(); ctx.moveTo(trilha[0].x,trilha[0].y);
+        ctx.lineTo(trilha[1].x,trilha[1].y); ctx.stroke();
+      }
+
+      // vidas e game over
+      sushis.forEach(s=>{
+        if(!s.missed&&!s.cortado&&s.y>=ALT){
+          vidas--; s.missed=true;
+          if(vidas<=0){ jogoAtivo=false; startShake(2000); setTimeout(fimDeJogo,2000);}
+        }
+      });
+      for(let i=0;i<vidas;i++){
+        ctx.drawImage(estrelaImg,LARG-(i+1)*40,10,30,30);
+      }
+
+      // pontuação
+      ctx.fillStyle='white'; ctx.font='20px Arial';
+      ctx.fillText(`Pontos: ${pontos}`, 10, 30);
+
+      // indicador de combo
+      if (!powerMode && comboTime>=5000 && comboTime<10000) {
+        const alpha = 0.5 + 0.5*Math.sin(now/200);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(comboImg, (LARG-200)/2, ALT-80, 200, 60);
+        ctx.restore();
+      }
+
+      // **DUPLICAR IMAGEM QUANDO POWER MODE**
+      if (powerMode) {
+      ctx.save();
+      // faz ela piscar
+      const alpha2 = 0.5 + 0.5 * Math.sin(now / 100);
+      ctx.globalAlpha = alpha2;
+      // desenha com o dobro do tamanho (400×120) e centraliza
+      ctx.drawImage(
+      comboImg,
+      (LARG - 400) / 2, // x
+      ALT - 140,        // y (um pouco acima da base)
+      400,              // largura dobrada
+      120               // altura dobrada
+      );
+      ctx.restore();
+    }
+
+      // spawn
+      const r = Math.random();
+      if (r<0.002) criarEspecial();
+      else if (r<0.012) criarBomba();
+      else if (r<0.062) criarSushi();
+
+      requestAnimationFrame(desenhar);
+    }
+
+    // — FUNÇÃO UNIFICADA DE CORTE —
+    function registrarCorte(x, y) {
+      cortando = true;
+      const prev = trilha[1] || { x, y };
+      trilha = [ prev, { x, y } ];
+
+      // calcula ângulo e posição da lâmina
+      const dx = trilha[1].x - trilha[0].x;
+      const dy = trilha[1].y - trilha[0].y;
+      bladeAngle = Math.atan2(dy, dx);
+      bladeX     = trilha[1].x;
+      bladeY     = trilha[1].y;
+
+      setTimeout(() => {
+        cortando = false;
+        trilha = [];
+      }, 150);
+
+      function ganho(pts){ pontos += powerMode ? pts*2 : pts; }
+
+      // pontuar sushis
+      sushis.forEach(s=>{
+        const cx = s.x + SUSHI_SIZE/2, cy = s.y + SUSHI_SIZE/2;
+        if (!s.cortado && Math.hypot(cx-x, cy-y) < SUSHI_SIZE/2) {
+          s.cortado = true; ganho(1);
+          cutSound.currentTime = 0; cutSound.play();
+           if (navigator.vibrate) {
+             navigator.vibrate(50);
+           }
+          explosions.push({ x:cx, y:cy, radius:10, alpha:1 });
+          sushisCortados.push({ x:s.x, y:s.y, lado:'esq', angulo:0, vx:-2, vy:4 });
+          sushisCortados.push({ x:s.x+SUSHI_SIZE/2, y:s.y, lado:'dir', angulo:0, vx:2, vy:4 });
+          comboTime = Math.min(comboTime + 1200, 20000);
+          noCutTimer = 0;
+        }
+      });
+      // pontuar especiais
+      specials.forEach(e=>{
+        const cx = e.x + SUSHI_SIZE/2, cy = e.y + SUSHI_SIZE/2;
+        if (!e.cortado && Math.hypot(cx-x, cy-y) < SUSHI_SIZE/2) {
+          e.cortado = true; ganho(e.points);
+          cutSound.currentTime = 0; cutSound.play();
+          navigator.vibrate(100);
+        }
+      });
+      // bombas
+      bombas.forEach(b=>{
+        if (Math.hypot(b.x+30-x, b.y+30-y) < 30) {
+          if (powerMode) {
+            b.y = ALT+100; ganho(10);
+            explosionSound.currentTime = 0; explosionSound.play();
+          } else {
+            explosionSound.currentTime = 0; explosionSound.play();
+            if (navigator.vibrate) {
+              navigator.vibrate([200,100,200]);
+             }
+            triggerBombDeath();
+          }
+        }
+      });
+    }
+
+    function triggerBombDeath(){
+      if(!jogoAtivo) return;
+      jogoAtivo=false;
+      startShake(2000);
+      setTimeout(fimDeJogo,2000);
+    }
+
+    canvas.addEventListener('mousemove', e=>{
+      const r = canvas.getBoundingClientRect();
+      registrarCorte(
+        (e.clientX-r.left)*(LARG/r.width),
+        (e.clientY-r.top)*(ALT/r.height)
+      );
+    });
+    canvas.addEventListener('touchmove', e=>{
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect(), t = e.touches[0];
+      registrarCorte(
+        (t.clientX-r.left)*(LARG/r.width),
+        (t.clientY-r.top)*(ALT/r.height)
+      );
+    }, { passive:false });
+
+    fetch('https://script.google.com/macros/s/AKfycbwZMQCIWftVLCWmor5kvAlhoCT5fqImtuMNj8B0bwvXcnfKzovt6g7J7dcYaSXs75Jo/exec'
+  + '?action=getMyRecord'
+  + '&deviceId=' + encodeURIComponent(deviceId)
+)
+.then(r=>r.json())
+.then(record => {
+  if (pontos > parseInt(record||0,10)) {
+    document.getElementById('submitContainer').style.display='block';
+    document.getElementById('enviarBtn').disabled=false;
+  }
+  carregarRanking();
+})
+.catch(console.error);
+
+
+    fetch('https://script.google.com/macros/s/AKfycbwZMQCIWftVLCWmor5kvAlhoCT5fqImtuMNj8B0bwvXcnfKzovt6g7J7dcYaSXs75Jo/exec'
+  + '?action=salvarPontuacao'
+  + '&deviceId='    + encodeURIComponent(deviceId)
+  + '&nome='        + encodeURIComponent(nome)
+  + '&pontos='      + pontos
+)
+.then(r=>r.json())
+.then(json=>{
+  if (json.success) {
+    btn.innerText='Pontuação enviada!';
+    carregarRanking();
+  } else throw new Error('Falha no servidor');
+})
+.catch(err=>{
+  alert('Erro ao salvar pontuação:\n'+err.message);
+  btn.disabled = false; btn.innerText='Enviar Pontuação';
+});
+
+
+    fetch('https://script.google.com/macros/s/AKfycbwZMQCIWftVLCWmor5kvAlhoCT5fqImtuMNj8B0bwvXcnfKzovt6g7J7dcYaSXs75Jo/exec'
+  + '?action=getRanking'
+  + '&deviceId=' + encodeURIComponent(deviceId)
+)
+.then(r=>r.json())
+.then(rankingArray=>{
+  document.getElementById('rankingContent')
+          .innerHTML = rankingArray.join('<br>');
+})
+.catch(console.error);
+
+
+    function reiniciarJogo(){
+      document.getElementById('gameOver').style.display='none';
+      pontos=0; vidas=3; jogoAtivo=true;
+      sushis=[]; bombas=[]; specials=[]; trilha=[]; cortando=false;
+      explosions=[]; sushisCortados=[]; comboTime=0; powerMode=false;
+      lastFrame=0; noCutTimer=0; goldenGlow.style.display='none';
+      level=0; desenhar();
+    }
+
+    // JOGAR: fecha o menu e inicia o jogo
+playBtn.addEventListener('click', () => {
+  playBtn.src = playBtn.dataset.selected;
+  menuOverlay.style.display = 'none';
+  resetGameState();    // <— aqui
+  iniciarJogo();
+});
+
+// OPÇÕES: só um alerta como exemplo
+optionsBtn.addEventListener('click', () => {
+  optionsBtn.src = optionsBtn.dataset.selected;
+  alert('Aqui você colocaria suas configurações');
+});
+
+// RECUPERAR: busca a pontuação do Google Apps Script
+recoverBtn.addEventListener('click', () => {
+  document.getElementById('recoverOverlay').style.display = 'flex';
+});
+
+// limpa todas as variáveis e prepara o jogo para uma nova partida
+function resetGameState() {
+  pontos = 0;
+  vidas = 3;
+  jogoAtivo = true;
+  sushis = []; bombas = []; specials = [];
+  trilha = []; cortando = false;
+  explosions = []; sushisCortados = [];
+  comboTime = 0; noCutTimer = 0;
+  powerMode = false; goldenGlow.style.display = 'none';
+  level = 0; lastFrame = 0;
+}
+
+// fecha o modal de fim de jogo e exibe o menu de novo
+function returnToMenu() {
+  document.getElementById('gameOver').style.display = 'none';
+  resetGameState();
+  menuOverlay.style.display = 'flex';
+  if (document.activeElement) document.activeElement.blur();
+}
+
+    function iniciarJogo(){
+      lastFrame=Date.now(); desenhar();
+    }
+  </script>
+</body>
+</html>
