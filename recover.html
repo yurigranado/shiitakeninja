@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 1em; }
+      label { display: block; margin: .5em 0 0.2em; }
+      input { width: 100%; padding: .5em; font-size: 1em; box-sizing: border-box; }
+      button { margin-top: 1em; padding: .7em 1.2em; font-size: 1em; }
+      #msg { margin-top: 1em; font-size: 0.95em; }
+    </style>
+  </head>
+  <body>
+    <h2>Recuperar Pontos</h2>
+    <form id="recoverForm">
+      <label>DDD</label>
+      <input id="ddd" type="text" value="55" maxlength="2">
+      <label>Telefone (Ex: 11987654321)</label>
+      <input id="phone" type="text" maxlength="11">
+      <button type="submit">Confirmar</button>
+    </form>
+
+    <!-- onde mostramos erro/sucesso -->
+    <div id="msg"></div>
+
+    <!-- botão pra fechar sem agir -->
+    <button type="button" onclick="document.getElementById('recoverOverlay').style.display='none';">
+      Cancelar
+    </button>
+
+    <script>
+      const form = document.getElementById('recoverForm'),
+            msg  = document.getElementById('msg');
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        const ddd   = document.getElementById('ddd').value.trim(),
+              phone = document.getElementById('phone').value.trim();
+
+        // validação básica
+        if (!/^\d{2}$/.test(ddd) || !/^\d{8,11}$/.test(phone)) {
+          msg.style.color = 'red';
+          msg.textContent = 'DDD ou número inválido.';
+          return;
+        }
+
+        const deviceId = localStorage.getItem('deviceId');
+        if (!deviceId) {
+          msg.style.color = 'red';
+          msg.textContent = 'Não encontramos seu aparelho.';
+          return;
+        }
+
+        // chama o servidor Apps Script
+        google.script.run
+          .withSuccessHandler(() => {
+            msg.style.color = 'green';
+            msg.textContent = 'Pontos recuperados e telefone salvo!';
+            // fecha automaticamente em 2s
+            setTimeout(() => {
+              document.getElementById('recoverOverlay').style.display = 'none';
+            }, 2000);
+          })
+          .withFailureHandler(err => {
+            msg.style.color = 'red';
+            msg.textContent = 'Erro: ' + err.message;
+          })
+          .recuperarPontos(deviceId, `${ddd}${phone}`);
+      });
+    </script>
+  </body>
+</html>
